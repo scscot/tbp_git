@@ -1,0 +1,136 @@
+ TeamBuild+ Project Documentation
+
+ 🔐 Authentication and Session Flow
+
+Auth Provider: Firebase (via REST API only)
+
+ Firebase Identity Toolkit REST endpoints used for email/password auth
+ `AuthService` exchanges `refreshToken` for `accessToken` using `securetoken.googleapis.com`
+ `SessionManager` singleton stores:
+
+   `UserModel` (email, uid, name, createdAt)
+   `idToken`
+   `accessToken`
+ Session is passed explicitly between screens to avoid plugin dependencies
+ On login success:
+
+   Firebase ID Token is stored for legacy compatibility
+   Access Token is used for all Firestore REST operations
+
+Sign-in & Sign-up flow:
+
+1. User signs in using `AuthService.signInWithEmailAndPassword()`
+2. Firebase returns ID token + refresh token
+3. App immediately exchanges refresh token for access token
+4. Profile is retrieved from Firestore using a Cloud Function
+
+ ☁️ Cloud Functions (Current and Historical)
+
+Environment: Firebase Cloud Functions v2 (Node.js 22)
+
+Active Functions:
+
+1. `getDownlineUsers`
+
+    GET request
+    Requires `x-user-email` header
+    Returns full list of user documents from Firestore
+2. `getUserProfileByEmail`
+
+    GET request
+    Requires `x-user-email` header
+    Returns single matching user document by email
+
+Historical Functions (removed or retired):
+
+ Direct REST Firestore queries from client
+
+   Deprecated due to token validation issues (401 errors)
+ `getUserProfile` (token-based)
+
+   Removed in favor of `getUserProfileByEmail`
+
+ 🔄 REST Strategy vs Native SDK
+
+Why REST only?
+
+ Avoids native plugin issues (e.g., CocoaPods, gRPC)
+ Keeps iOS builds fast and consistent
+ Enables precise token and session control
+
+REST APIs Used:
+
+ Firebase Identity Toolkit (auth)
+ Secure Token API (access token)
+ Firestore REST endpoints for document reads/writes
+ All authenticated REST calls require bearer `accessToken`
+
+Benefits:
+
+ Fully deterministic behavior
+ Clear debugging and interception via `curl`
+ Portable across platforms and CI pipelines
+
+Tradeoffs:
+
+ More manual session/token management
+ Slightly more verbose than SDK usage
+
+ 📂 Directory & File Structure
+
+Mission-Critical Dart Files:
+
+ `auth_service.dart`: handles login, session, and token exchange
+ `session_manager.dart`: singleton session state holder
+ `firestore_service.dart`: Firestore access through Cloud Functions
+ `user_model.dart`: unified data model for user profile
+ `downline_team_screen.dart`: displays filtered team hierarchy
+
+Other Core Screens:
+
+ `login_screen.dart`
+ `complete_profile_screen.dart`
+ `dashboard_screen.dart`
+ `onboarding_screen.dart`
+
+Cloud Function Source:
+
+ `/functions/index.js`: Cloud Function logic
+
+Top-Level App Structure:
+
+```
+lib/
+├── models/
+│   └── user_model.dart
+├── screens/
+│   ├── downline_team_screen.dart
+│   ├── login_screen.dart
+│   ├── complete_profile_screen.dart
+│   └── dashboard_screen.dart
+├── services/
+│   ├── auth_service.dart
+│   ├── session_manager.dart
+│   └── firestore_service.dart
+```
+
+ 🛣️ Roadmap Checkpoints
+
+✅ Completed
+
+ Replaced native Firebase SDK with full REST setup
+ Rebuilt Cloud Functions from scratch
+ Fixed 401 error by using `x-user-email` header strategy
+ Validated login flow and session persistence
+
+🔜 Next Steps
+
+1. Reintroduce preferred UI from `dart_files_old.zip`
+2. Add loading states, error toasts, and graceful fallbacks
+3. Migrate additional Firestore operations to Cloud Functions
+4. Finalize session restore logic for app relaunch
+5. Begin polish pass + prepare staging branch for App Store submission
+
+---
+
+Let me know when you're ready for Phase 2: UI Reconciliation using the old dart files archive.

@@ -1,0 +1,8 @@
+platform :ios, '13.0'
+
+use_frameworks! :linkage => :static
+install! 'cocoapods', :deterministic_uuids => false
+
+target 'Runner' do
+  # No Flutter podhelper or Firebase pods needed
+end
