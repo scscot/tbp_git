@@ -1,10 +1,10 @@
 // PATCHED: sign_in_screen.dart (removes outdated authService param)
 
 import 'package:flutter/material.dart';
-import 'package:teambuild/services/auth_service.dart';
-import 'package:teambuild/services/firestore_service.dart';
-import 'package:teambuild/screens/new_registration_screen.dart';
-import 'package:teambuild/screens/onboarding_screen.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
+import 'new_registration_screen.dart';
+import 'onboarding_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});

@@ -1,49 +1,66 @@
-// PATCHED: login_screen.dart (removes required authService param)
+// FINAL PATCHED: login_screen.dart — Includes registration + dashboard logic
 
 import 'package:flutter/material.dart';
+import 'new_registration_screen.dart';
 import '../services/auth_service.dart';
-import '../services/session_manager.dart';
-import '../models/user_model.dart';
-import 'dashboard_screen_v2.dart';
+import '../services/firestore_service.dart';
+import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  bool _isLoading = false;
-  String? _errorMessage;
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final AuthService authService = AuthService();
+  final FirestoreService firestoreService = FirestoreService();
+
+  bool isLoading = false;
+  String? errorMessage;
 
   Future<void> _login() async {
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      isLoading = true;
+      errorMessage = null;
     });
 
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
     try {
-      final user = await AuthService().signInWithEmailAndPassword(email, password);
+      final user = await authService.signInWithEmailAndPassword(
+        emailController.text.trim(),
+        passwordController.text.trim(),
+      );
+
       if (user != null) {
-        SessionManager.instance.currentUser = user;
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardScreenV2()),
+          MaterialPageRoute(builder: (_) => DashboardScreen()),
         );
-      } else {
-        setState(() => _errorMessage = 'Login failed.');
       }
     } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      setState(() {
+        errorMessage = e.toString();
+      });
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        isLoading = false;
+      });
     }
+  }
+
+  void _navigateToRegister() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NewRegistrationScreen(
+          authService: authService,
+          firestoreService: firestoreService,
+        ),
+      ),
+    );
   }
 
   @override
@@ -56,25 +73,39 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextField(
-              controller: _emailController,
+              controller: emailController,
               decoration: const InputDecoration(labelText: 'Email'),
+              keyboardType: TextInputType.emailAddress,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextField(
-              controller: _passwordController,
+              controller: passwordController,
               decoration: const InputDecoration(labelText: 'Password'),
               obscureText: true,
             ),
-            const SizedBox(height: 20),
-            if (_isLoading) const Center(child: CircularProgressIndicator()),
-            if (_errorMessage != null) ...[
-              Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-              const SizedBox(height: 12),
-            ],
+            const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: _isLoading ? null : _login,
-              child: const Text('Log In'),
+              onPressed: isLoading ? null : _login,
+              child: isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('Log In'),
             ),
+            TextButton(
+              onPressed: () {},
+              child: const Text('Forgot Password?'),
+            ),
+            TextButton(
+              onPressed: _navigateToRegister,
+              child: const Text('Create Account'),
+            ),
+            if (errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: Text(
+                  errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
           ],
         ),
       ),

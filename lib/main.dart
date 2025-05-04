@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
-import 'screens/dashboard_screen_v2.dart';
+import 'screens/dashboard_screen.dart';
 import 'screens/profile_screen.dart';
 import 'services/session_manager.dart';
 
@@ -37,7 +37,7 @@ class EntryPoint extends StatelessWidget {
       // Placeholder for profile completion screen if needed
       return const ProfileScreen();
     } else {
-      return const DashboardScreenV2();
+      return const DashboardScreen();
     }
   }
 }

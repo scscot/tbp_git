@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:teambuild/services/auth_service.dart';
-import 'package:teambuild/services/firestore_service.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 
 class NewRegistrationScreen extends StatefulWidget {
   final AuthService authService;

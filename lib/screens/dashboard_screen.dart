@@ -1,4 +1,4 @@
-// PATCHED: dashboard_screen_v2.dart (removes outdated authService param)
+// PATCHED: dashboard_screen.dart (removes outdated authService param)
 
 import 'package:flutter/material.dart';
 import '../services/session_manager.dart';
@@ -6,8 +6,8 @@ import '../models/user_model.dart';
 import 'profile_screen.dart';
 import 'downline_team_screen.dart';
 
-class DashboardScreenV2 extends StatelessWidget {
-  const DashboardScreenV2({Key? key}) : super(key: key);
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

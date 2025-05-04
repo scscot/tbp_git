@@ -1,4 +1,4 @@
-// FINAL PATCHED: auth_service.dart — Uses getUserProfileByEmail Cloud Function instead of direct Firestore access
+// FINAL PATCHED: auth_service.dart — Implements accessToken handling for Firestore access
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -8,6 +8,8 @@ import 'firestore_service.dart';
 
 class AuthService {
   final String apiKey = 'AIzaSyBCMVduZ1vACpCUNv5DQ9P17DnWj1_fjLw';
+  final String projectId = 'teambuilder-plus-fe74d';
+
   final session = SessionManager.instance;
 
   Future<String?> _exchangeRefreshToken(String refreshToken) async {
@@ -91,8 +93,11 @@ class AuthService {
         accessToken: accessToken ?? '',
       );
 
-      final userProfile = await FirestoreService().getUserProfileByEmail(data['email']);
-      return userProfile;
+      final userProfileMap = await FirestoreService().getUserProfileByEmail(data['email']);
+      if (userProfileMap != null) {
+        return UserModel.fromJson(userProfileMap);
+      }
+      return null;
     } else {
       final error = data['error']?['message'] ?? 'Unknown error';
       throw Exception('Login failed: $error');

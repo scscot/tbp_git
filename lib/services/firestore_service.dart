@@ -1,34 +1,84 @@
-// FINAL PATCHED: firestore_service.dart — Uses Cloud Function for user profile lookup
+// FINAL PATCHED: firestore_service.dart — includes createUserProfile() for registration
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/user_model.dart';
 
 class FirestoreService {
-  final String cloudFunctionUrl =
-      'https://us-central1-teambuilder-plus-fe74d.cloudfunctions.net/getUserProfileByEmail';
+  final String projectId = 'teambuilder-plus-fe74d';
 
-  Future<UserModel?> getUserProfileByEmail(String email) async {
-    try {
-      final response = await http.get(
-        Uri.parse(cloudFunctionUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': email,
+  Future<Map<String, dynamic>?> getUserProfileByEmail(String email) async {
+    final query = Uri.encodeComponent("email = '$email'");
+    final url = Uri.parse(
+      'https://firestore.googleapis.com/v1/projects/$projectId/databases/(default)/documents:runQuery',
+    );
+
+    final body = {
+      "structuredQuery": {
+        "from": [{"collectionId": "users"}],
+        "where": {
+          "fieldFilter": {
+            "field": {"fieldPath": "email"},
+            "op": "EQUAL",
+            "value": {"stringValue": email},
+          }
         },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return UserModel.fromJson(data);
-      } else {
-        print(
-            '❌ Failed to fetch user profile: ${response.statusCode} — ${response.body}');
-        return null;
+        "limit": 1
       }
-    } catch (e) {
-      print('🔥 Error in getUserProfileByEmail: $e');
-      return null;
+    };
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 200) {
+      final results = json.decode(response.body);
+      final doc = results.firstWhere((r) => r['document'] != null, orElse: () => null);
+      if (doc != null) {
+        final data = doc['document']['fields'] as Map<String, dynamic>;
+        final id = doc['document']['name'].split('/').last;
+        return {"id": id, ..._flattenFields(data)};
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _flattenFields(Map<String, dynamic> fields) {
+    final result = <String, dynamic>{};
+    fields.forEach((key, value) {
+      result[key] = value.values.first;
+    });
+    return result;
+  }
+
+  Future<void> createUserProfile(
+    String idToken,
+    String userId,
+    Map<String, dynamic> userData,
+  ) async {
+    final url = Uri.parse(
+      'https://firestore.googleapis.com/v1/projects/$projectId/databases/(default)/documents/users?documentId=$userId',
+    );
+
+    final body = {
+      "fields": userData.map((key, value) => MapEntry(
+            key,
+            {"stringValue": value.toString()},
+          ))
+    };
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $idToken',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to create user profile: ${response.body}');
     }
   }
 }
