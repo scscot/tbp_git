@@ -100,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
             TextButton(
               onPressed: () {},
-              child: const Text('Forgot Password?'),
+              child: const Text('Forgo Password?'),
             ),
             OutlinedButton(
               onPressed: _navigateToRegister,
