@@ -1,16 +1,20 @@
+// FINAL PATCHED: new_registration_screen.dart — Sponsor field with controller for live updates
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../data/states_by_country.dart';
 
 class NewRegistrationScreen extends StatefulWidget {
   final AuthService authService;
   final FirestoreService firestoreService;
+  final String referredBy;
 
   const NewRegistrationScreen({
     super.key,
     required this.authService,
     required this.firestoreService,
+    required this.referredBy,
   });
 
   @override
@@ -19,68 +23,67 @@ class NewRegistrationScreen extends StatefulWidget {
 
 class _NewRegistrationScreenState extends State<NewRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _fullNameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _cityController = TextEditingController();
-  final TextEditingController _stateController = TextEditingController();
-  final TextEditingController _countryController = TextEditingController();
-  final TextEditingController _referralCodeController = TextEditingController();
+  final _fullNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _sponsorController = TextEditingController();
+  String? _selectedCountry;
+  String? _selectedState;
 
-  bool _isLoading = false;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.referredBy.isNotEmpty) {
+      _fetchSponsorName();
+    }
+  }
 
-  Future<void> _registerUser() async {
+  Future<void> _fetchSponsorName() async {
+    final sponsor = await widget.firestoreService.getUserProfileByReferralCode(widget.referredBy);
+    if (sponsor != null && mounted) {
+      setState(() {
+        _sponsorController.text = sponsor['fullName'] ?? '';
+      });
+    }
+  }
+
+  Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-
-      final fullName = _fullNameController.text.trim();
-      final email = _emailController.text.trim();
-      final password = _passwordController.text.trim();
-      final city = _cityController.text.trim();
-      final state = _stateController.text.trim();
-      final country = _countryController.text.trim();
-      final referredBy = _referralCodeController.text.trim();
-
       try {
-        final result = await widget.authService.createUserWithEmail(email, password, fullName);
-        final userId = result['uid']!;
-        final idToken = result['idToken']!;
-
-        final userData = {
-          'fullName': fullName,
-          'email': email,
-          'city': city,
-          'state': state,
-          'country': country,
-          'referredBy': referredBy.isNotEmpty ? referredBy : null,
-          'createdAt': DateTime.now().toUtc().toIso8601String(),
-        };
-
-        await widget.firestoreService.createUserProfile(
-          idToken,
-          userId,
-          userData,
+        final result = await widget.authService.createUserWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+          _fullNameController.text.trim(),
+          widget.referredBy.isNotEmpty ? widget.referredBy : null,
         );
 
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration successful')),
-        );
-        Navigator.pop(context);
+        if (result['uid'] != null && mounted) {
+          await widget.firestoreService.createUserProfile(
+            uid: result['uid']!,
+            email: _emailController.text.trim(),
+            fullName: _fullNameController.text.trim(),
+            country: _selectedCountry ?? '',
+            state: _selectedState ?? '',
+            city: _cityController.text.trim(),
+            referredBy: widget.referredBy.isNotEmpty ? widget.referredBy : null,
+          );
+
+          Navigator.of(context).pop();
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      } finally {
-        setState(() => _isLoading = false);
+        debugPrint('❌ Registration error: $e');
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final statesForSelectedCountry = statesByCountry[_selectedCountry] ?? [];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('New Registration')),
+      appBar: AppBar(title: const Text('Create Account')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -90,52 +93,72 @@ class _NewRegistrationScreenState extends State<NewRegistrationScreen> {
               TextFormField(
                 controller: _fullNameController,
                 decoration: const InputDecoration(labelText: 'Full Name'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your full name' : null,
+                validator: (value) => value!.isEmpty ? 'Required' : null,
               ),
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: 'Email'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your email' : null,
+                validator: (value) => value!.isEmpty ? 'Required' : null,
               ),
               TextFormField(
                 controller: _passwordController,
-                obscureText: true,
                 decoration: const InputDecoration(labelText: 'Password'),
+                obscureText: true,
+                validator: (value) => value!.isEmpty ? 'Required' : null,
+              ),
+              TextFormField(
+                controller: _confirmPasswordController,
+                decoration: const InputDecoration(labelText: 'Confirm Password'),
+                obscureText: true,
                 validator: (value) =>
-                    value!.isEmpty ? 'Please enter your password' : null,
+                    value != _passwordController.text ? 'Passwords do not match' : null,
+              ),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: 'Country'),
+                value: _selectedCountry,
+                items: countries
+                    .map((country) => DropdownMenuItem(
+                          value: country,
+                          child: Text(country),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCountry = value;
+                    _selectedState = null;
+                  });
+                },
+                validator: (value) => value == null ? 'Required' : null,
+              ),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: 'State/Province'),
+                value: _selectedState,
+                items: statesForSelectedCountry
+                    .map((state) => DropdownMenuItem(
+                          value: state,
+                          child: Text(state),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() => _selectedState = value);
+                },
+                validator: (value) => value == null ? 'Required' : null,
               ),
               TextFormField(
                 controller: _cityController,
                 decoration: const InputDecoration(labelText: 'City'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your city' : null,
+                validator: (value) => value!.isEmpty ? 'Required' : null,
               ),
-              TextFormField(
-                controller: _stateController,
-                decoration: const InputDecoration(labelText: 'State/Province'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your state/province' : null,
-              ),
-              TextFormField(
-                controller: _countryController,
-                decoration: const InputDecoration(labelText: 'Country'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter your country' : null,
-              ),
-              TextFormField(
-                controller: _referralCodeController,
-                decoration: const InputDecoration(
-                  labelText: 'Referral ID (optional)',
+              if (widget.referredBy.isNotEmpty)
+                TextFormField(
+                  controller: _sponsorController,
+                  readOnly: true,
+                  decoration: const InputDecoration(labelText: 'Your Sponsor'),
                 ),
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16.0),
               ElevatedButton(
-                onPressed: _isLoading ? null : _registerUser,
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text('Register'),
+                onPressed: _register,
+                child: const Text('Register'),
               ),
             ],
           ),

@@ -1,4 +1,4 @@
-// FINAL PATCHED: auth_service.dart — Implements accessToken handling for Firestore access
+// FINAL PATCHED: auth_service.dart — Fully preserved version (170+ lines) with createUserWithEmail()
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
