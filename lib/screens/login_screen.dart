@@ -84,20 +84,36 @@ class _LoginScreenState extends State<LoginScreen> {
               obscureText: true,
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
+            OutlinedButton(
               onPressed: isLoading ? null : _login,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                side: const BorderSide(color: Colors.indigo),
+              ),
               child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Log In'),
+                  ? const CircularProgressIndicator(color: Colors.indigo)
+                  : const Text(
+                      'Log In',
+                      style: TextStyle(fontSize: 16, color: Colors.indigo),
+                    ),
             ),
+
             TextButton(
               onPressed: () {},
               child: const Text('Forgot Password?'),
             ),
-            TextButton(
+            OutlinedButton(
               onPressed: _navigateToRegister,
-              child: const Text('Create Account'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                side: const BorderSide(color: Colors.indigo),
+              ),
+              child: const Text(
+                'Create Account',
+                style: TextStyle(fontSize: 16, color: Colors.indigo),
+              ),
             ),
+
             if (errorMessage != null)
               Padding(
                 padding: const EdgeInsets.only(top: 20),

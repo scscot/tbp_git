@@ -8,7 +8,7 @@ import 'firestore_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthService {
-  final String apiKey = 'AIzaSyBmqQnkuUzOB-bRECMFx8Su6XPoc0lANrg';
+  final String apiKey = dotenv.env['GOOGLE_API_KEY']!;
   final String projectId = 'teambuilder-plus-fe74d';
 
   final session = SessionManager.instance;
