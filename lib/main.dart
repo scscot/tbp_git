@@ -1,13 +1,14 @@
-// PATCHED: main.dart (removes outdated authService param for ProfileScreen)
-
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/profile_screen.dart';
 import 'services/session_manager.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: 'assets/env.prod');
+  debugPrint("✅ .env loaded with GOOGLE_API_KEY: ${dotenv.env['GOOGLE_API_KEY']}");
   runApp(const MyApp());
 }
 

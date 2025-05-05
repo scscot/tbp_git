@@ -5,9 +5,10 @@ import 'package:http/http.dart' as http;
 import 'session_manager.dart';
 import '../models/user_model.dart';
 import 'firestore_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthService {
-  final String apiKey = 'AIzaSyBCMVduZ1vACpCUNv5DQ9P17DnWj1_fjLw';
+  final String apiKey = 'AIzaSyBmqQnkuUzOB-bRECMFx8Su6XPoc0lANrg';
   final String projectId = 'teambuilder-plus-fe74d';
 
   final session = SessionManager.instance;
