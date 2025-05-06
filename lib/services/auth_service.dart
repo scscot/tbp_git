@@ -1,4 +1,4 @@
-// FINAL PATCHED: auth_service.dart — Merges Firestore profile for fullName on login
+// FINAL PATCHED: auth_service.dart — Handles DateTime for createdAt properly
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -90,12 +90,13 @@ class AuthService {
 
     if (response.statusCode == 200) {
       final accessToken = await _exchangeRefreshToken(body['refreshToken']);
+
       session.saveSession(
         user: UserModel(
           uid: body['localId'],
           email: email,
           fullName: fullName,
-          createdAt: DateTime.now().toIso8601String(),
+          createdAt: DateTime.now(),
         ),
         idToken: body['idToken'],
         accessToken: accessToken ?? '',
@@ -124,4 +125,9 @@ class AuthService {
   }
 
   bool isSignedIn() => session.currentUser != null && session.currentUser!.uid.isNotEmpty;
-} 
+
+  String _generateReferralCode(String email) {
+    final hash = email.hashCode.toRadixString(36).toUpperCase();
+    return hash.substring(0, hash.length > 6 ? 6 : hash.length);
+  }
+}

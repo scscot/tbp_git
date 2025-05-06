@@ -43,164 +43,106 @@ class _DownlineTeamScreenState extends State<DownlineTeamScreen> {
 
       final url = Uri.parse('https://us-central1-teambuilder-plus-fe74d.cloudfunctions.net/getDownlineUsers');
       final response = await http.get(
-        Uri.parse('https://us-central1-teambuilder-plus-fe74d.cloudfunctions.net/getDownlineUsers'),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': email,
-        },
+        url,
+        headers: {'x-user-email': email},
       );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final List<UserModel> allUsers = data.map((json) => UserModel.fromJson(json)).toList();
-
-        final filtered = allUsers.where((u) =>
-            (u.referredBy ?? '').trim().toLowerCase() == email.trim().toLowerCase()).toList();
-
-        setState(() {
-          allDownlineUsers = filtered;
-          groupedDownline = groupByLevel(filtered);
-          fullTeam = filtered;
-          visibleTeam = _applyFilter(filtered);
-          levelCounts = _calculateLevelCounts(groupedDownline);
-          isLoading = false;
-        });
-      } else {
-        throw Exception('Server returned status ${response.statusCode}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to fetch downline data');
       }
+
+      final List<dynamic> raw = json.decode(response.body);
+      allDownlineUsers = raw.map((j) => UserModel.fromJson(j)).toList();
+      fullTeam = List.from(allDownlineUsers);
+      _applyFilters();
     } catch (e) {
       print('❌ Error fetching downline: $e');
+    } finally {
       setState(() => isLoading = false);
     }
   }
 
-  Map<int, List<UserModel>> groupByLevel(List<UserModel> users) {
-    final Map<int, List<UserModel>> levels = {};
-    for (var user in users) {
-      final level = (user.level is int) ? user.level as int : int.tryParse('${user.level}') ?? 1;
-      levels.putIfAbsent(level, () => []).add(user);
-    }
-    return levels;
-  }
-
-  Map<int, int> _calculateLevelCounts(Map<int, List<UserModel>> levels) {
-    final Map<int, int> counts = {};
-    levels.forEach((key, value) {
-      counts[key] = value.length;
-    });
-    return counts;
-  }
-
-  List<UserModel> _applyFilter(List<UserModel> input) {
-    if (selectedFilter == 'All') return input;
+  void _applyFilters() {
     final now = DateTime.now();
-    final cutoff = selectedFilter == 'Last 7 Days'
-        ? now.subtract(const Duration(days: 7))
-        : now.subtract(const Duration(days: 30));
+    List<UserModel> filtered = List.from(fullTeam);
 
-    return input.where((u) {
-      final dt = DateTime.tryParse(u.createdAt);
-      return dt != null && dt.isAfter(cutoff);
-    }).toList();
+    if (selectedFilter == 'Last 7 Days') {
+      filtered = filtered.where((u) => u.createdAt.isAfter(now.subtract(Duration(days: 7)))).toList();
+    } else if (selectedFilter == 'Last 30 Days') {
+      filtered = filtered.where((u) => u.createdAt.isAfter(now.subtract(Duration(days: 30)))).toList();
+    }
+
+    if (selectedLevel >= 0) {
+      filtered = filtered.where((u) => u.level == '$selectedLevel').toList();
+    }
+
+    levelCounts = {};
+    for (var u in fullTeam) {
+      final lvl = int.tryParse(u.level ?? '-1') ?? -1;
+      levelCounts[lvl] = (levelCounts[lvl] ?? 0) + 1;
+    }
+
+    setState(() {
+      visibleTeam = filtered;
+    });
   }
 
-  void _updateFilter(String? value) {
-    if (value != null) {
-      setState(() {
-        selectedFilter = value;
-        visibleTeam = _applyFilter(fullTeam);
-      });
-    }
+  Widget _buildFilterRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: filters.map((f) => _buildFilterButton(f)).toList(),
+    );
+  }
+
+  Widget _buildFilterButton(String label) {
+    final isSelected = label == selectedFilter;
+    return OutlinedButton(
+      onPressed: () {
+        setState(() {
+          selectedFilter = label;
+          _applyFilters();
+        });
+      },
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: isSelected ? Colors.indigo : Colors.grey),
+      ),
+      child: Text(label, style: TextStyle(color: isSelected ? Colors.indigo : Colors.black)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Downline Team')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+                  child: _buildFilterRow(),
+                ),
                 Expanded(
-                  child: DropdownButton<String>(
-                    value: selectedFilter,
-                    items: filters.map((f) {
-                      return DropdownMenuItem(
-                        value: f,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(f),
+                  child: ListView.builder(
+                    itemCount: visibleTeam.length,
+                    itemBuilder: (context, index) {
+                      final u = visibleTeam[index];
+                      final dt = u.createdAt;
+                      return ListTile(
+                        title: Text(u.fullName),
+                        subtitle: Text('${u.email}\nJoined ${dt.month}/${dt.day}/${dt.year}'),
+                        isThreeLine: true,
+                        trailing: Text('L${u.level ?? '-'}'),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => ProfileScreen()),
                         ),
                       );
-                    }).toList(),
-                    onChanged: _updateFilter,
+                    },
                   ),
-                ),
-                const SizedBox(width: 16),
-                DropdownButton<int>(
-                  value: selectedLevel,
-                  hint: const Text('All Levels'),
-                  items: [
-                    const DropdownMenuItem<int>(
-                      value: -1,
-                      child: Text('All Levels'),
-                    ),
-                    ...levelCounts.keys.map((level) => DropdownMenuItem<int>(
-                          value: level,
-                          child: Text('Level $level (${levelCounts[level]})'),
-                        )),
-                  ],
-                  onChanged: (level) {
-                    setState(() {
-                      selectedLevel = level ?? -1;
-                    });
-                  },
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: visibleTeam.isEmpty
-                  ? const Center(child: Text('No team members'))
-                  : ListView.builder(
-                      itemCount: visibleTeam.length,
-                      itemBuilder: (context, index) {
-                        final user = visibleTeam[index];
-                        if (selectedLevel > -1) {
-                          final level = _getUserLevel(user);
-                          if (level != selectedLevel) return const SizedBox();
-                        }
-                        return Card(
-                          child: ListTile(
-                            title: Text(user.fullName ?? 'Unnamed User'),
-                            subtitle: Text('${user.email}\nJoined: ${user.createdAt}'),
-                            isThreeLine: true,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const ProfileScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
     );
-  }
-
-  int _getUserLevel(UserModel user) {
-    for (var entry in groupedDownline.entries) {
-      if (entry.value.contains(user)) return entry.key;
-    }
-    return -1;
   }
 }

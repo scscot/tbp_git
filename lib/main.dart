@@ -36,7 +36,7 @@ class EntryPoint extends StatelessWidget {
       return const LoginScreen();
     } else if ((user.fullName ?? '').isEmpty) {
       // Placeholder for profile completion screen if needed
-      return const ProfileScreen();
+      return ProfileScreen();
     } else {
       return const DashboardScreen();
     }

@@ -1,4 +1,4 @@
-// PATCHED: session_manager.dart — Adds accessToken support for Firestore access
+// FINAL PATCHED: session_manager.dart — Includes signOut method for ProfileScreen compatibility
 
 import '../models/user_model.dart';
 
@@ -29,4 +29,8 @@ class SessionManager {
     _idToken = null;
     _accessToken = null;
   }
-}
+
+  Future<void> signOut() async {
+    clear();
+  }
+} 

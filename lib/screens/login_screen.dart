@@ -60,8 +60,8 @@ class _LoginScreenState extends State<LoginScreen> {
         builder: (_) => NewRegistrationScreen(
           authService: authService,
           firestoreService: firestoreService,
-          // referredBy: 'TEMP123',
-          referredBy: 'kn5eYjRM9sf7Scizh1F9AOfZU122',
+          referredBy: 'TEMP123',
+          // referredBy: 'kn5eYjRM9sf7Scizh1F9AOfZU122',
         ),
       ),
     );

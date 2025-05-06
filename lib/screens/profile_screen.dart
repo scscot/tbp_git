@@ -1,98 +1,132 @@
-// PATCHED: profile_screen.dart (Canvas-First)
-
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../models/user_model.dart';
-import '../services/session_manager.dart';
+import 'package:tbp/models/user_model.dart';
+import 'package:tbp/services/session_manager.dart';
+import 'package:tbp/screens/edit_profile_screen.dart';
+import 'package:tbp/screens/change_password_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
-  String formatJoinDate(dynamic createdAt) {
-    if (createdAt == null) return 'Unknown';
-    try {
-      final timestamp = createdAt is String
-          ? DateTime.parse(createdAt)
-          : createdAt.toDate();
-      return DateFormat('MMMM d, y').format(timestamp);
-    } catch (e) {
-      return 'Invalid date';
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  String? sponsorName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSponsorName();
+  }
+
+  Future<void> _loadSponsorName() async {
+    final referredBy = SessionManager.instance.currentUser?.referredBy;
+    if (referredBy != null && referredBy.isNotEmpty) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(referredBy).get();
+        if (doc.exists && mounted) {
+          setState(() {
+            sponsorName = doc.data()?['fullName'] ?? "";
+          });
+        }
+      } catch (e) {
+        debugPrint('Error fetching sponsor name: $e');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = SessionManager.instance.currentUser;
+    if (user == null) {
+      return const Scaffold(body: Center(child: Text('No user data available')));
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Your Profile'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              // TODO: Navigate to profile edit screen
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await SessionManager.instance.signOut();
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, '/login');
+              }
             },
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.deepPurple.shade100,
+        child: const Icon(Icons.edit, color: Colors.deepPurple),
+        onPressed: () {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const EditProfileScreen(),
+          ));
+        },
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundImage: user?.photoUrl != null
-                        ? NetworkImage(user!.photoUrl!)
-                        : null,
-                    child: user?.photoUrl == null
-                        ? const Icon(Icons.person, size: 60)
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 4,
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.grey[200],
-                      child: const Icon(Icons.camera_alt, size: 18),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            if (user != null) ...[
-              Text(
-                user.fullName ?? '',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                user.email,
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              if (user.createdAt != null)
-                Text(
-                  'Joined: ${formatJoinDate(user.createdAt)}',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              const SizedBox(height: 20),
-              if (user.referredByName != null)
-                Text(
-                  'Referred by: ${user.referredByName}',
-                  style: const TextStyle(fontSize: 14),
-                ),
-            ],
+            _infoRow('Name', user.fullName ?? ''),
+            _infoRow('Email', user.email ?? ''),
+            _infoRow('Password', 'Change password', isLink: true, onTap: () => _openChangePasswordModal()),
+            if ((user.city ?? '').isNotEmpty) _infoRow('City', user.city!),
+            if ((user.state ?? '').isNotEmpty) _infoRow('State/Province', user.state!),
+            if ((user.country ?? '').isNotEmpty) _infoRow('Country', user.country!),
+            _infoRow('Joined Date', _formatDate(user.createdAt)),
+            if (sponsorName != null && sponsorName!.isNotEmpty)
+              _infoRow('Your Sponsor', sponsorName!),
           ],
         ),
       ),
     );
+  }
+
+  Widget _infoRow(String label, String value, {bool isLink = false, VoidCallback? onTap}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          ),
+          Expanded(
+            child: isLink
+                ? GestureDetector(
+                    onTap: onTap,
+                    child: Text(
+                      value,
+                      style: const TextStyle(color: Colors.deepPurple, decoration: TextDecoration.underline),
+                    ),
+                  )
+                : Text(value),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openChangePasswordModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+      ),
+      builder: (_) => const ChangePasswordScreen(),
+    );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Unknown';
+    return '${date.month}/${date.day}/${date.year}';
   }
 }

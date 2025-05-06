@@ -1,51 +1,45 @@
-// PATCHED: user_model.dart — added 'level' field
+// FINAL PATCHED: user_model.dart — Uses DateTime for createdAt
 
 class UserModel {
   final String uid;
   final String email;
-  final String? fullName;
-  final dynamic createdAt;
+  final String fullName;
+  final DateTime createdAt;
   final String? photoUrl;
   final String? referredBy;
   final String? referredByName;
-  final String? level; // ✅ ADDED
+  final String? level;
+  final String? city;
+  final String? state;
+  final String? country;
 
   UserModel({
     required this.uid,
     required this.email,
-    this.fullName,
-    this.createdAt,
+    required this.fullName,
+    required this.createdAt,
     this.photoUrl,
     this.referredBy,
     this.referredByName,
-    this.level, // ✅ ADDED
+    this.level,
+    this.city,
+    this.state,
+    this.country,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       uid: json['uid'] ?? '',
       email: json['email'] ?? '',
-      fullName: json['fullName'],
-      createdAt: json['createdAt'],
+      fullName: json['fullName'] ?? '',
+      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
       photoUrl: json['photoUrl'],
       referredBy: json['referredBy'],
       referredByName: json['referredByName'],
-      level: json['level'], // ✅ ADDED
-    );
-  }
-
-  static UserModel fromFirestore(Map<String, dynamic> doc) {
-    final fields = doc['fields'] ?? {};
-
-    return UserModel(
-      uid: fields['uid']?['stringValue'] ?? '',
-      email: fields['email']?['stringValue'] ?? '',
-      fullName: fields['fullName']?['stringValue'],
-      createdAt: fields['createdAt']?['stringValue'],
-      photoUrl: fields['photoUrl']?['stringValue'],
-      referredBy: fields['referredBy']?['stringValue'],
-      referredByName: fields['referredByName']?['stringValue'],
-      level: fields['level']?['stringValue'], // ✅ ADDED
+      level: json['level'],
+      city: json['city'],
+      state: json['state'],
+      country: json['country'],
     );
   }
 
@@ -54,11 +48,14 @@ class UserModel {
       'uid': uid,
       'email': email,
       'fullName': fullName,
-      'createdAt': createdAt,
+      'createdAt': createdAt.toIso8601String(),
       'photoUrl': photoUrl,
       'referredBy': referredBy,
       'referredByName': referredByName,
-      'level': level, // ✅ ADDED
+      'level': level,
+      'city': city,
+      'state': state,
+      'country': country,
     };
   }
-}
+} 
