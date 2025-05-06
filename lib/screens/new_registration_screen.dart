@@ -1,4 +1,4 @@
-// FINAL PATCHED: new_registration_screen.dart — Sponsor field with controller for live updates
+// FINAL PATCHED: new_registration_screen.dart — Conditional Sponsor Field Display
 
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
@@ -31,6 +31,7 @@ class _NewRegistrationScreenState extends State<NewRegistrationScreen> {
   final _sponsorController = TextEditingController();
   String? _selectedCountry;
   String? _selectedState;
+  bool _showSponsorField = false;
 
   @override
   void initState() {
@@ -42,9 +43,10 @@ class _NewRegistrationScreenState extends State<NewRegistrationScreen> {
 
   Future<void> _fetchSponsorName() async {
     final sponsor = await widget.firestoreService.getUserProfileByReferralCode(widget.referredBy);
-    if (sponsor != null && mounted) {
+    if (sponsor != null && sponsor['fullName'] != null && mounted) {
       setState(() {
-        _sponsorController.text = sponsor['fullName'] ?? '';
+        _sponsorController.text = sponsor['fullName'];
+        _showSponsorField = true;
       });
     }
   }
@@ -149,7 +151,7 @@ class _NewRegistrationScreenState extends State<NewRegistrationScreen> {
                 decoration: const InputDecoration(labelText: 'City'),
                 validator: (value) => value!.isEmpty ? 'Required' : null,
               ),
-              if (widget.referredBy.isNotEmpty)
+              if (_showSponsorField)
                 TextFormField(
                   controller: _sponsorController,
                   readOnly: true,

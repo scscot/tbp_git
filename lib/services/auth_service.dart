@@ -1,4 +1,4 @@
-// FINAL PATCHED: auth_service.dart — Fully preserved version (170+ lines) with createUserWithEmail()
+// FINAL PATCHED: auth_service.dart — Merges Firestore profile for fullName on login
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -10,7 +10,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class AuthService {
   final String apiKey = dotenv.env['GOOGLE_API_KEY']!;
   final String projectId = 'teambuilder-plus-fe74d';
-
   final session = SessionManager.instance;
 
   Future<String?> _exchangeRefreshToken(String refreshToken) async {
@@ -31,40 +30,6 @@ class AuthService {
     }
   }
 
-  Future<void> signInWithEmail(String email, String password) async {
-    final url = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$apiKey');
-
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'email': email,
-        'password': password,
-        'returnSecureToken': true,
-      }),
-    );
-
-    final body = json.decode(response.body);
-
-    if (response.statusCode == 200) {
-      final accessToken = await _exchangeRefreshToken(body['refreshToken']);
-      print('🪪 Firebase ID Token: ${body['idToken']}');
-      session.saveSession(
-        user: UserModel(
-          uid: body['localId'],
-          email: body['email'] ?? email,
-          fullName: body['displayName'] ?? '',
-          createdAt: DateTime.now().toIso8601String(),
-        ),
-        idToken: body['idToken'],
-        accessToken: accessToken ?? '',
-      );
-    } else {
-      print('❌ Login failed: ${body['error']}');
-      throw Exception(body['error']?['message'] ?? 'Login failed');
-    }
-  }
-
   Future<UserModel?> signInWithEmailAndPassword(String email, String password) async {
     final url = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$apiKey');
 
@@ -82,27 +47,25 @@ class AuthService {
 
     if (response.statusCode == 200 && data['localId'] != null) {
       final accessToken = await _exchangeRefreshToken(data['refreshToken']);
-      print('🪪 Firebase ID Token: ${data['idToken']}');
-      session.saveSession(
-        user: UserModel(
-          uid: data['localId'],
-          email: data['email'] ?? email,
-          fullName: data['displayName'] ?? '',
-          createdAt: DateTime.now().toIso8601String(),
-        ),
-        idToken: data['idToken'],
-        accessToken: accessToken ?? '',
-      );
 
       final userProfileMap = await FirestoreService().getUserProfileByEmail(data['email']);
+
       if (userProfileMap != null) {
-        return UserModel.fromJson(userProfileMap);
+        final userModel = UserModel.fromJson(userProfileMap);
+
+        session.saveSession(
+          user: userModel,
+          idToken: data['idToken'],
+          accessToken: accessToken ?? '',
+        );
+
+        print('🪪 Firebase ID Token: ${data['idToken']}');
+        return userModel;
       }
-      return null;
-    } else {
-      final error = data['error']?['message'] ?? 'Unknown error';
-      throw Exception('Login failed: $error');
     }
+
+    final error = data['error']?['message'] ?? 'Unknown error';
+    throw Exception('Login failed: $error');
   }
 
   Future<Map<String, String>> createUserWithEmail(
@@ -127,7 +90,6 @@ class AuthService {
 
     if (response.statusCode == 200) {
       final accessToken = await _exchangeRefreshToken(body['refreshToken']);
-      print('🪪 Firebase ID Token: ${body['idToken']}');
       session.saveSession(
         user: UserModel(
           uid: body['localId'],
@@ -162,9 +124,4 @@ class AuthService {
   }
 
   bool isSignedIn() => session.currentUser != null && session.currentUser!.uid.isNotEmpty;
-
-  String _generateReferralCode(String email) {
-    final hash = email.hashCode.toRadixString(36).toUpperCase();
-    return hash.substring(0, hash.length > 6 ? 6 : hash.length);
-  }
-}
+} 
